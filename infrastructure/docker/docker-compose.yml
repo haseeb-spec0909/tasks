@@ -1,0 +1,111 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: timeintel-postgres
+    environment:
+      POSTGRES_USER: timeintel_app
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev-password}
+      POSTGRES_DB: timeintel_db
+      POSTGRES_INITDB_ARGS: "-c max_connections=200"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - timeintel-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U timeintel_app -d timeintel_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: timeintel-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis-dev-password}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - timeintel-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/backend.Dockerfile
+    container_name: timeintel-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://timeintel_app:${DB_PASSWORD:-dev-password}@postgres:5432/timeintel_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis-dev-password}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret}
+      PORT: 8080
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID:-tmcltd-timeintel}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-/app/credentials.json}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../../backend:/app/src
+      - /app/node_modules
+    networks:
+      - timeintel-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  scheduling-engine:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/scheduling-engine.Dockerfile
+    container_name: timeintel-scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://timeintel_app:${DB_PASSWORD:-dev-password}@postgres:5432/timeintel_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis-dev-password}@redis:6379
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID:-tmcltd-timeintel}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-/app/credentials.json}
+      LOG_LEVEL: info
+    ports:
+      - "8081:8081"
+    volumes:
+      - ../../scheduling-engine:/app
+      - /app/.venv
+    networks:
+      - timeintel-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  timeintel-network:
+    driver: bridge

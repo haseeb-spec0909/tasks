@@ -1,0 +1,107 @@
+steps:
+  # Step 1: Install dependencies and run tests
+  - name: 'node:20-slim'
+    entrypoint: npm
+    args:
+      - ci
+    env:
+      - 'CLOUDSDK_COMPUTE_REGION=asia-south1'
+      - 'CLOUDSDK_CONTAINER_CLUSTER=timeintel'
+    id: 'install-deps'
+    dir: 'backend'
+    waitFor: ['-']
+
+  - name: 'node:20-slim'
+    entrypoint: npm
+    args:
+      - run
+      - test
+    env:
+      - 'CI=true'
+      - 'NODE_ENV=test'
+    id: 'run-tests'
+    dir: 'backend'
+    waitFor: ['install-deps']
+
+  # Step 2: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - '-t'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/backend:$SHORT_SHA'
+      - '-t'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/backend:latest'
+      - '-f'
+      - 'infrastructure/docker/backend.Dockerfile'
+      - '.'
+    id: 'build-image'
+    waitFor: ['run-tests']
+
+  # Step 3: Push image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/backend:$SHORT_SHA'
+    id: 'push-image'
+    waitFor: ['build-image']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/backend:latest'
+    id: 'push-latest'
+    waitFor: ['build-image']
+
+  # Step 4: Deploy to Cloud Run
+  - name: 'gcr.io/cloud-builders/gke-deploy'
+    args:
+      - run
+      - --filename=infrastructure/
+      - '--location=asia-south1'
+    id: 'deploy-cloud-run'
+    waitFor: ['push-latest']
+
+  # Alternative: Use gcloud run deploy directly
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - run
+      - deploy
+      - timeintel-api
+      - '--image=asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/backend:$SHORT_SHA'
+      - '--region=asia-south1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=NODE_ENV=production,GCP_PROJECT_ID=$PROJECT_ID'
+      - '--memory=512Mi'
+      - '--cpu=1'
+    id: 'deploy-backend'
+    waitFor: ['push-latest']
+
+# Configuration
+images:
+  - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/backend:$SHORT_SHA'
+  - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/backend:latest'
+
+artifacts:
+  images:
+    - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/backend:$SHORT_SHA'
+
+# Trigger configuration (in Cloud Build UI):
+# - Branch: main
+# - Included files: backend/**, infrastructure/docker/backend.Dockerfile
+# - Included files: infrastructure/terraform/cloud_run.tf
+
+timeout: '1800s'
+substitutions:
+  _REGION: 'asia-south1'
+  _SERVICE_NAME: 'timeintel-api'
+
+options:
+  machineType: 'N1_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+  
+tags:
+  - backend
+  - cloud-run
+  - timeintel
+  - gke-deploy

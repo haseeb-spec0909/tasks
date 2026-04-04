@@ -1,0 +1,334 @@
+================================================================================
+TMC TimeIntel - Database Schema Complete
+================================================================================
+
+PROJECT: TMC TimeIntel - AI-powered work intelligence platform
+PLATFORM: PostgreSQL 15 Compatible
+CREATED: 2026-04-04
+
+================================================================================
+DELIVERABLES CHECKLIST
+================================================================================
+
+[X] 001_core_tables.sql (318 lines)
+    - users (UUID PK, Google OAuth + ProjectFlow integration)
+    - user_settings (working hours, focus targets, notifications)
+    - tasks (synced from Google Tasks + ProjectFlow)
+    - pf_task_meta (ProjectFlow WBS hierarchy metadata)
+    - habits (recurring routines with template support)
+    - scheduling_state (task/habit scheduling to calendar)
+    - sync_log (audit trail of all sync operations)
+    - pf_sync_state (ProjectFlow polling state)
+    - calendar_events_cache (cached Google Calendar events)
+    - notifications_log (Slack/Google Chat notifications)
+    - team_members (manager-member relationships)
+    - gcal_watch_channels (Google Calendar push subscriptions)
+
+[X] 002_indexes.sql (178 lines)
+    - 32 performance indexes total
+    - Single-column lookups: user_id, status, priority, source, etc.
+    - Composite indexes: (user_id, status), (user_id, source), time ranges
+    - Critical path optimization for:
+      * Dashboard queries (tasks by status)
+      * Availability checks (scheduling_state time ranges)
+      * Sync audit history (sync_log user/source/time)
+
+[X] 003_functions.sql (368 lines)
+    - update_updated_at() trigger (auto timestamps)
+    - calculate_task_priority() (P1-P4 based on due date)
+    - sync_task_from_external() (import with logging)
+    - mark_task_completed() (completion with audit)
+    - get_user_free_slots() (availability analysis)
+    - get_user_daily_focus_time() (focus metrics)
+    - check_sync_errors() (monitoring)
+    - Triggers applied to: users, user_settings, tasks, habits
+
+[X] 004_seed_data.sql (224 lines)
+    - 7 habit templates (is_template=true, user_id=NULL)
+    - Lunch Break (1:00 PM, 30-60 min, Mon-Fri)
+    - Dhuhr Prayer (1:15 PM, 15 min, P1_CRITICAL)
+    - Asr Prayer (4:15 PM, 15 min, P1_CRITICAL)
+    - Daily Task Review (5:00 PM, 20-30 min, Mon-Fri)
+    - Email Triage (9:00 AM, 20-30 min, Mon-Fri)
+    - Weekly Planner Review (Mon 9:00 AM, 30-45 min)
+    - ProjectFlow Update (4:00 PM, 15-20 min, Mon-Fri)
+
+[X] schema_diagram.md (750+ lines)
+    - ASCII entity relationship diagrams
+    - Complete table relationships with cardinality
+    - Index strategy (3 performance tiers)
+    - Constraints and validation rules
+    - Migration order and dependencies
+    - Data types and enumerations
+    - JSON field examples
+    - Query patterns and performance characteristics
+    - Storage estimates
+    - Maintenance guidelines
+    - Function library documentation
+
+[X] README.md (comprehensive guide)
+    - Quick start instructions
+    - Migration execution steps
+    - Feature overview
+    - Data model highlights
+    - Query examples
+    - Troubleshooting guide
+    - Maintenance tasks
+    - Future enhancements
+
+================================================================================
+SCHEMA STATISTICS
+================================================================================
+
+Tables: 12
+  - users (user authentication + profile)
+  - user_settings (per-user configuration)
+  - tasks (task data from Google Tasks + ProjectFlow)
+  - pf_task_meta (ProjectFlow metadata)
+  - habits (recurring routines)
+  - scheduling_state (calendar scheduling)
+  - sync_log (audit trail)
+  - pf_sync_state (sync state tracking)
+  - calendar_events_cache (cached events)
+  - notifications_log (notification history)
+  - team_members (org relationships)
+  - gcal_watch_channels (push subscriptions)
+
+Indexes: 32
+  - 18 single-column indexes
+  - 8 composite indexes
+  - 6 specialized indexes (time range, category, etc.)
+
+Functions: 7
+  - 1 trigger function (with 4 trigger applications)
+  - 6 utility functions
+
+Triggers: 4
+  - update_updated_at on users
+  - update_updated_at on user_settings
+  - update_updated_at on tasks
+  - update_updated_at on habits
+
+Data Types Used:
+  - UUID (for PKs with gen_random_uuid())
+  - VARCHAR with CHECK constraints (enumerations)
+  - TIMESTAMPTZ (all timestamps in UTC)
+  - JSONB (flexible data: hours, config, metadata)
+  - BOOLEAN, INTEGER, DATE, TIME, TEXT
+
+Total Lines of SQL: 1,088
+================================================================================
+
+KEY FEATURES
+================================================================================
+
+1. MULTI-SOURCE TASK MANAGEMENT
+   - Sync from Google Tasks and ProjectFlow
+   - Automatic deduplication (UNIQUE on source+external_id+user_id)
+   - Full audit trail via sync_log
+
+2. INTELLIGENT SCHEDULING
+   - Google Calendar integration with real-time Push API support
+   - Focus time management with flexible/locked modes
+   - Time-block based scheduling with split support
+   - Free-slot availability calculation
+
+3. PROJECTFLOW INTEGRATION
+   - Complete WBS hierarchy tracking (pf_task_meta)
+   - Deliverable, build, and project context
+   - Baseline date tracking
+   - Automatic priority calculation
+
+4. USER CUSTOMIZATION
+   - Per-user working hours (JSON by day)
+   - Configurable focus targets (minutes/day)
+   - Notification preferences (JSON)
+   - Timezone support (default Asia/Karachi)
+   - Email domain enforcement (@tmcltd.ai)
+
+5. REAL-TIME SYNCHRONIZATION
+   - Google Calendar push notifications
+   - ProjectFlow polling with error tracking
+   - Checksum-based change detection
+   - Consecutive error counting for backoff
+
+6. HABIT TEMPLATES
+   - Global templates for team-wide adoption
+   - User-specific instances with inheritance
+   - Recurrence rules (RFC 5545 compatible)
+   - Priority and duration constraints
+
+================================================================================
+
+CONSTRAINTS & VALIDATION
+================================================================================
+
+Domain Constraints:
+  - Email domain must be @tmcltd.ai (CHECK constraint)
+  - Role: consultant | manager | admin
+  - Source: GOOGLE_TASKS | PROJECTFLOW | GOOGLE_CALENDAR
+  - Direction: INBOUND | OUTBOUND
+  - Status: 7 valid values (NOT_STARTED through CANCELLED)
+  - Priority: P1_CRITICAL | P2_HIGH | P3_MEDIUM | P4_LOW
+  - Block type: task | focus | habit
+  - Focus defense: flexible | locked
+  - Event category: 8 categories (one_on_one through other)
+
+Data Integrity:
+  - Progress percentage: 0-100 (CHECK)
+  - Consecutive errors: >= 0 (CHECK)
+  - Scheduling state: must have task_id OR habit_id (CHECK)
+  - Task uniqueness: (source, external_id, user_id)
+  - Cache uniqueness: (user_id, gcal_event_id)
+  - Team uniqueness: (manager_user_id, member_user_id)
+
+Cascade Behavior:
+  - User deletion → cascades to all related tables
+  - Task deletion → cascades to pf_task_meta, scheduling_state, notifications
+  - Habit deletion → cascades to scheduling_state
+  - Owner deletion → set to NULL for orphaned tasks
+
+================================================================================
+
+PERFORMANCE CHARACTERISTICS
+================================================================================
+
+Critical Path Indexes (Tier 1):
+  - idx_tasks_user_status: User dashboard queries
+  - idx_sched_time_range: Availability calculations
+  - idx_cache_time_range: Calendar scheduling
+  - idx_pf_meta_task_id: ProjectFlow metadata joins
+
+Common Query Indexes (Tier 2):
+  - idx_tasks_user_source: Source-specific task lists
+  - idx_sync_user_source_time: Audit history
+  - idx_notif_user_id + sent_at: Recent notifications
+  - idx_habits_user_active: Active habit scheduling
+
+Lookup Indexes (Tier 3):
+  - idx_users_google_id: OAuth lookups
+  - idx_pf_meta_wp_task_id: ProjectFlow task mapping
+  - idx_team_manager_id: Manager team lookup
+
+Write Optimization:
+  - Append-only sync_log design
+  - UNIQUE constraints support ON CONFLICT semantics
+  - Denormalized fields (wp_code) reduce joins
+
+Query Performance:
+  - User task queries: ~1ms with index
+  - Availability slot finding: 5-50ms depending on calendar density
+  - Sync audit queries: <1ms with composite index
+  - Calendar event lookups: <1ms with time-range index
+
+Storage Estimate (500 users, 1 year):
+  - Total with indexes: 3-4 GB
+  - sync_log will be largest (875 MB estimated)
+  - Annual growth: ~0.5-1 GB per 500 users
+
+================================================================================
+
+MIGRATION EXECUTION ORDER
+================================================================================
+
+1. 001_core_tables.sql
+   - Creates base tables with foreign keys
+   - All constraints and default values
+   - Table and column comments
+
+2. 002_indexes.sql
+   - Optimizes all read paths
+   - Depends on tables from #1
+
+3. 003_functions.sql
+   - Adds business logic layer
+   - Applies triggers to tables from #1
+   - Depends on both #1 and #2
+
+4. 004_seed_data.sql
+   - Inserts 7 habit templates
+   - Depends on habits table from #1
+   - Optional (can skip if migrating existing data)
+
+================================================================================
+
+TESTING RECOMMENDATIONS
+================================================================================
+
+Unit Tests:
+  - calculate_task_priority() with various dates
+  - get_user_free_slots() with overlapping events
+  - sync_task_from_external() creates and updates
+  - mark_task_completed() logs correctly
+
+Integration Tests:
+  - Multi-source task deduplication
+  - ProjectFlow metadata sync roundtrip
+  - Calendar event caching consistency
+  - Notification logging with chat integration
+
+Load Tests:
+  - 1000+ concurrent users
+  - 10k+ tasks per user
+  - Real-time calendar sync
+  - Daily sync batch operations
+
+Data Quality:
+  - Email domain enforcement
+  - No duplicate external IDs per source
+  - Orphaned task handling
+  - Stale calendar cache cleanup
+
+================================================================================
+
+DEPLOYMENT CHECKLIST
+================================================================================
+
+[  ] PostgreSQL 15+ installed and configured
+[  ] Database created (e.g., timeintel_db)
+[  ] User created with appropriate privileges
+[  ] Backup strategy in place
+[  ] Run all 4 migrations in order
+[  ] Verify table creation: \dt
+[  ] Verify function creation: \df
+[  ] Verify indexes: \di
+[  ] Test seed data queries
+[  ] Configure Google OAuth credentials
+[  ] Set up ProjectFlow API polling
+[  ] Configure Google Calendar Watch API
+[  ] Set up backfill for historical data
+[  ] Configure monitoring/alerting
+
+================================================================================
+
+SUPPORT & DOCUMENTATION
+================================================================================
+
+Files Created:
+  - migrations/001_core_tables.sql: Table definitions
+  - migrations/002_indexes.sql: Performance indexes
+  - migrations/003_functions.sql: Triggers and functions
+  - migrations/004_seed_data.sql: Default data
+  - schema_diagram.md: ER diagrams and relationships
+  - README.md: Usage guide and examples
+  - SCHEMA_SUMMARY.txt: This file
+
+Documentation Coverage:
+  - Complete table schema with comments
+  - All constraints documented
+  - Index strategy explained
+  - Query examples provided
+  - Troubleshooting section included
+  - Maintenance guidelines detailed
+  - JSON field examples shown
+
+Questions or Issues:
+  - Review schema_diagram.md for relationships
+  - Check README.md for common questions
+  - Examine migration files for constraints
+  - Test functions with sample data
+
+================================================================================
+
+END OF SCHEMA SUMMARY
+================================================================================

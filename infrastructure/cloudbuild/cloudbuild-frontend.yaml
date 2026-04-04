@@ -1,0 +1,90 @@
+steps:
+  # Step 1: Install dependencies
+  - name: 'node:20-slim'
+    entrypoint: npm
+    args:
+      - ci
+    env:
+      - 'NODE_ENV=production'
+      - 'CI=true'
+    id: 'install-deps'
+    dir: 'frontend'
+    waitFor: ['-']
+
+  # Step 2: Run tests
+  - name: 'node:20-slim'
+    entrypoint: npm
+    args:
+      - run
+      - test
+      - '--'
+      - '--coverage'
+      - '--watchAll=false'
+    env:
+      - 'CI=true'
+      - 'NODE_ENV=test'
+    id: 'run-tests'
+    dir: 'frontend'
+    waitFor: ['install-deps']
+
+  # Step 3: Build application
+  - name: 'node:20-slim'
+    entrypoint: npm
+    args:
+      - run
+      - build
+    env:
+      - 'NODE_ENV=production'
+      - 'REACT_APP_API_URL=https://api.timeintel.tmcltd.ai'
+      - 'REACT_APP_GCP_PROJECT_ID=$PROJECT_ID'
+    id: 'build-app'
+    dir: 'frontend'
+    waitFor: ['run-tests']
+
+  # Step 4: Deploy to Firebase Hosting
+  - name: 'gcr.io/cloud-builders/firebase'
+    args:
+      - deploy
+      - '--project=$PROJECT_ID'
+      - '--only=hosting:timeintel-web'
+      - '--config=firebase.json'
+    env:
+      - 'FIREBASE_TOKEN=${_FIREBASE_TOKEN}'
+    id: 'deploy-firebase'
+    dir: 'frontend'
+    waitFor: ['build-app']
+
+  # Alternative: Use npm package to deploy
+  - name: 'node:20-slim'
+    entrypoint: npm
+    args:
+      - run
+      - deploy
+    env:
+      - 'FIREBASE_TOKEN=${_FIREBASE_TOKEN}'
+      - 'PROJECT_ID=$PROJECT_ID'
+    id: 'deploy-npm'
+    dir: 'frontend'
+    waitFor: ['build-app']
+    onFailure: 'CONTINUE'
+
+# Configuration
+substitutions:
+  _FIREBASE_TOKEN: ''  # Set via Cloud Build UI or environment variables
+
+# Trigger configuration (in Cloud Build UI):
+# - Branch: main
+# - Included files: frontend/**, infrastructure/terraform/firebase.tf
+
+timeout: '1200s'
+
+options:
+  machineType: 'N1_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+
+tags:
+  - frontend
+  - firebase
+  - hosting
+  - timeintel
+  - react

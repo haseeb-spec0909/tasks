@@ -1,0 +1,159 @@
+TMC TimeIntel ProjectFlow Integration - File Structure
+======================================================
+
+projectflow-endpoints/
+│
+├── README.md                          (15 KB) - Complete documentation and user guide
+├── STRUCTURE.txt                      (This file) - Directory structure overview
+│
+└── webServices/
+    │
+    ├── healthcheck.php                (2.1 KB) - Health check endpoint
+    │   └── GET /webServices/healthcheck.php
+    │       Returns: {"status": "ok", "database": "connected"}
+    │
+    ├── getMyTasks.php                 (7.0 KB) - Get assigned tasks with WBS hierarchy
+    │   └── GET /webServices/getMyTasks.php?user_id=42[&updated_since=ISO8601]
+    │       Returns: Array of tasks with full project/build/deliverable hierarchy
+    │
+    ├── getMyWorkpackages.php           (6.0 KB) - Get assigned workpackages
+    │   └── GET /webServices/getMyWorkpackages.php?user_id=42[&project_id=5]
+    │       Returns: Array of workpackages with task counts
+    │
+    ├── updateTaskProgress.php          (12 KB) - Update task progress % with cascade
+    │   └── POST /webServices/updateTaskProgress.php
+    │       Body: {"wp_task_id": 1001, "progress_pct": 75, "updated_by_user_id": 42}
+    │       Returns: {"success": true, "new_progress": 75, ...}
+    │       Transaction: BEGIN → UPDATE → CALL CASCADES → COMMIT/ROLLBACK
+    │
+    ├── initiateTask.php                (7.4 KB) - Initiate task (mark started)
+    │   └── POST /webServices/initiateTask.php
+    │       Body: {"wp_task_id": 1001, "initiated_by_user_id": 42}
+    │       Returns: {"success": true, "initiated_date": "..."}
+    │       Transaction: BEGIN → UPDATE → COMMIT/ROLLBACK
+    │
+    └── config/
+        │
+        ├── api_auth.php                (6.9 KB) - Authentication and IP validation
+        │   Functions:
+        │   - validateApiKey($key)         Check against GLOBALS['API_KEY']
+        │   - validateTimeIntelApiKey($key) Check against GLOBALS['TIMEINTEL_API_KEY']
+        │   - requireAuth()                Validate key + IP, exit if invalid
+        │   - getRequestingIp()            Extract client IP from headers
+        │   - isAllowedIp($ip)             Check against Cloud Run IP ranges
+        │   - logApiCall()                 Log to SYS_EVENT_LOG
+        │
+        └── database.php                (5.2 KB) - Oracle OCI8 connection management
+            Functions:
+            - getOracleConnection()       Return OCI8 connection resource
+            - beginTransaction($conn)     Start manual commit mode
+            - commitTransaction($conn)    Commit transaction
+            - rollbackTransaction($conn)  Rollback transaction
+            - executePreparedStatement()  Execute query with bind variables
+            - fetchAllAssoc()             Fetch all rows
+            - closeStatement()            Free statement resource
+            - closeConnection()           Close DB connection
+
+Authentication & Security
+========================
+
+All endpoints require:
+1. API_KEY header (validated via validateApiKey or validateTimeIntelApiKey)
+2. Client IP in allowed range (default: Cloud Run ranges + localhost)
+3. Valid HTTP method (GET vs POST)
+4. Valid parameter format and ranges
+
+Database Security
+================
+
+- OCI8 prepared statements with bind variables (prevents SQL injection)
+- Manual transaction control (BEGIN/COMMIT/ROLLBACK)
+- Proper connection cleanup
+- Error logging without exposing sensitive data
+
+Transaction Flow (updateTaskProgress)
+===================================
+
+1. BEGIN TRANSACTION (Manual commit mode)
+2. Fetch current task data (validation)
+3. UPDATE TMC_WORKPACKAGE_TASK SET progress = X
+4. Call updateWPActualProgress(wp_id)
+5. Call updateDeliverableActualProgress(del_id)
+6. Call updateBuildActualProgress(build_id)
+7. Call updateProjectActualProgress(project_id)
+8. Call saveStatusHistory()
+9. Call saveDateHistory()
+10. COMMIT (success) or ROLLBACK (any error)
+
+Configuration
+=============
+
+In your main ProjectFlow config file, set:
+
+    $GLOBALS['API_KEY'] = 'your-secret-api-key';
+    $GLOBALS['TIMEINTEL_API_KEY'] = 'timeintel-key-optional';
+    $GLOBALS['DB_USER'] = 'oracle_user';
+    $GLOBALS['DB_PASS'] = 'oracle_password';
+    $GLOBALS['DB_NAME'] = 'oracle_tns_alias';
+
+Installation
+============
+
+1. Copy webServices/ directory to ProjectFlow's _webServices/
+2. Add configuration to ProjectFlow main config file
+3. Update IP allowlist in api_auth.php if needed
+4. Test with: GET /webServices/healthcheck.php
+5. Configure rate limiting (100 req/min recommended)
+
+Testing
+=======
+
+Health Check:
+  curl -H "API_KEY: key" https://projectflow/webServices/healthcheck.php
+
+Get Tasks:
+  curl -H "API_KEY: key" "https://projectflow/webServices/getMyTasks.php?user_id=42"
+
+Update Progress:
+  curl -X POST -H "API_KEY: key" -H "Content-Type: application/json" \
+    -d '{"wp_task_id":1001,"progress_pct":75,"updated_by_user_id":42}' \
+    https://projectflow/webServices/updateTaskProgress.php
+
+Logging
+=======
+
+All API calls logged to SYS_EVENT_LOG:
+- EVENT_TYPE: TIMEINTEL_API_CALL
+- Details: JSON with endpoint, user_id, client_ip, parameters
+- Level: INFO
+
+Query: SELECT * FROM SYS_EVENT_LOG WHERE EVENT_TYPE = 'TIMEINTEL_API_CALL' ORDER BY CREATED_DT DESC;
+
+File Statistics
+===============
+
+Total Files:   8
+PHP Files:     6 (18.5 KB total)
+Config Files:  2 (12.1 KB total)
+Docs Files:    1 (15 KB)
+
+Lines of Code:
+- api_auth.php:           ~290 lines
+- database.php:           ~250 lines
+- healthcheck.php:        ~70 lines
+- getMyTasks.php:         ~210 lines
+- getMyWorkpackages.php:  ~180 lines
+- updateTaskProgress.php: ~270 lines
+- initiateTask.php:       ~270 lines
+Total PHP:                ~1,540 lines
+
+All code follows:
+- OCI8 prepared statement patterns
+- Consistent error handling
+- Comprehensive input validation
+- Security best practices
+- ProjectFlow coding conventions
+
+Author: haseeb@tmcltd.ai
+Version: 1.0.0
+Date: 2026-04-04

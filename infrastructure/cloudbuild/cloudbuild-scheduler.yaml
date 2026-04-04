@@ -1,0 +1,107 @@
+steps:
+  # Step 1: Install dependencies and run tests
+  - name: 'python:3.11-slim'
+    entrypoint: pip
+    args:
+      - install
+      - '-r'
+      - 'requirements.txt'
+      - 'pytest'
+      - 'pytest-cov'
+    id: 'install-deps'
+    dir: 'scheduling-engine'
+    waitFor: ['-']
+
+  - name: 'python:3.11-slim'
+    entrypoint: python
+    args:
+      - -m
+      - pytest
+      - tests/
+      - '-v'
+      - '--cov=.'
+      - '--cov-report=term-missing'
+    env:
+      - 'PYTHONPATH=/workspace/scheduling-engine'
+      - 'DATABASE_URL=sqlite:///test.db'
+    id: 'run-tests'
+    dir: 'scheduling-engine'
+    waitFor: ['install-deps']
+
+  # Step 2: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - '-t'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/scheduler:$SHORT_SHA'
+      - '-t'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/scheduler:latest'
+      - '-f'
+      - 'infrastructure/docker/scheduling-engine.Dockerfile'
+      - '.'
+    id: 'build-image'
+    waitFor: ['run-tests']
+
+  # Step 3: Push image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/scheduler:$SHORT_SHA'
+    id: 'push-image'
+    waitFor: ['build-image']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/scheduler:latest'
+    id: 'push-latest'
+    waitFor: ['build-image']
+
+  # Step 4: Deploy to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - run
+      - deploy
+      - timeintel-scheduler
+      - '--image=asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/scheduler:$SHORT_SHA'
+      - '--region=asia-south1'
+      - '--platform=managed'
+      - '--no-allow-unauthenticated'
+      - '--set-env-vars=GCP_PROJECT_ID=$PROJECT_ID,LOG_LEVEL=info'
+      - '--memory=1Gi'
+      - '--cpu=2'
+      - '--timeout=3600'
+      - '--max-instances=5'
+      - '--min-instances=1'
+      - '--service-account=timeintel-scheduler-sa@$PROJECT_ID.iam.gserviceaccount.com'
+    id: 'deploy-scheduler'
+    waitFor: ['push-latest']
+
+# Configuration
+images:
+  - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/scheduler:$SHORT_SHA'
+  - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/scheduler:latest'
+
+artifacts:
+  images:
+    - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/scheduler:$SHORT_SHA'
+
+# Trigger configuration (in Cloud Build UI):
+# - Branch: main
+# - Included files: scheduling-engine/**, infrastructure/docker/scheduling-engine.Dockerfile
+# - Included files: infrastructure/terraform/cloud_run.tf
+
+timeout: '1800s'
+substitutions:
+  _REGION: 'asia-south1'
+  _SERVICE_NAME: 'timeintel-scheduler'
+
+options:
+  machineType: 'N1_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+
+tags:
+  - scheduler
+  - cloud-run
+  - timeintel
+  - python
