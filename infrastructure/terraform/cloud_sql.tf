@@ -5,14 +5,10 @@ resource "google_sql_database_instance" "timeintel" {
   region           = var.region
 
   settings {
-    tier                        = var.db_instance_tier
-    availability_type           = "REGIONAL"
-    disk_type                   = var.db_storage_type
-    disk_size                   = var.db_storage_size
-    enable_bin_log              = true
-    backup_enabled              = var.db_backup_enabled
-    backup_location             = var.db_backup_location
-    transaction_log_retention_days = 7
+    tier              = var.db_instance_tier
+    availability_type = "REGIONAL"
+    disk_type         = var.db_storage_type
+    disk_size         = var.db_storage_size
 
     database_flags {
       name  = "cloudsql_iam_authentication"
@@ -97,6 +93,10 @@ resource "google_secret_manager_secret" "db_password" {
   secret_id = "cloud-sql-password"
 
   labels = local.common_labels
+
+  replication {
+    auto {}
+  }
 }
 
 resource "google_secret_manager_secret_version" "db_password" {
@@ -104,19 +104,3 @@ resource "google_secret_manager_secret_version" "db_password" {
   secret_data = random_password.db_password.result
 }
 
-# Cloud SQL connection name output
-output "cloud_sql_connection_name" {
-  value       = google_sql_database_instance.timeintel.connection_name
-  description = "Cloud SQL instance connection name for application connection"
-}
-
-output "cloud_sql_private_ip" {
-  value       = google_sql_database_instance.timeintel.private_ip_address
-  description = "Private IP address of Cloud SQL instance"
-}
-
-output "database_password_secret" {
-  value       = google_secret_manager_secret.db_password.name
-  description = "Secret Manager secret name for database password"
-  sensitive   = true
-}

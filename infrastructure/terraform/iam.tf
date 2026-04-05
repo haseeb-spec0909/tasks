@@ -125,17 +125,3 @@ resource "google_project_iam_member" "chatbot_aiplatform_user" {
 }
 
 # Outputs
-output "backend_service_account_email" {
-  value       = google_service_account.backend_sa.email
-  description = "Backend service account email"
-}
-
-output "scheduler_service_account_email" {
-  value       = google_service_account.scheduler_sa.email
-  description = "Scheduler service account email"
-}
-
-output "chatbot_service_account_email" {
-  value       = google_service_account.chatbot_sa.email
-  description = "Chatbot service account email"
-}

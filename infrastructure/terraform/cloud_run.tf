@@ -235,17 +235,3 @@ resource "google_cloud_run_service_iam_member" "chatbot_invoker" {
 }
 
 # Outputs
-output "backend_service_url" {
-  value       = google_cloud_run_service.backend.status[0].url
-  description = "Backend Cloud Run service URL"
-}
-
-output "scheduler_service_url" {
-  value       = google_cloud_run_service.scheduler.status[0].url
-  description = "Scheduler Cloud Run service URL"
-}
-
-output "chatbot_webhook_url" {
-  value       = google_cloud_run_service.chatbot.status[0].url
-  description = "Chatbot webhook Cloud Run service URL"
-}

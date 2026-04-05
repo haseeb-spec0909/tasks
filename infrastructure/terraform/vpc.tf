@@ -24,7 +24,6 @@ resource "google_compute_subnetwork" "timeintel_subnet" {
     ip_cidr_range = "10.8.0.0/20"
   }
 
-  labels = local.common_labels
 }
 
 # VPC Access Connector for Cloud Run to access Cloud SQL and Redis
@@ -110,17 +109,8 @@ output "vpc_network_id" {
   description = "VPC network ID"
 }
 
-output "vpc_network_name" {
-  value       = google_compute_network.timeintel_vpc.name
-  description = "VPC network name"
-}
-
 output "subnetwork_id" {
   value       = google_compute_subnetwork.timeintel_subnet.id
   description = "Subnetwork ID"
 }
 
-output "vpc_connector_name" {
-  value       = google_vpc_access_connector.timeintel_connector.name
-  description = "VPC Access Connector name for Cloud Run"
-}

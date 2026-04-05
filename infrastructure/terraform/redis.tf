@@ -31,11 +31,6 @@ resource "google_redis_instance" "timeintel" {
     }
   }
 
-  # Backup configuration (if applicable to tier)
-  backup_configuration {
-    enabled = var.redis_tier == "standard" ? true : false
-  }
-
   labels = local.common_labels
 }
 
@@ -50,6 +45,10 @@ resource "google_secret_manager_secret" "redis_auth_string" {
   secret_id = "redis-auth-string"
 
   labels = local.common_labels
+
+  replication {
+    auto {}
+  }
 }
 
 resource "google_secret_manager_secret_version" "redis_auth_string" {
@@ -62,6 +61,10 @@ resource "google_secret_manager_secret" "redis_url" {
   secret_id = "redis-url"
 
   labels = local.common_labels
+
+  replication {
+    auto {}
+  }
 }
 
 resource "google_secret_manager_secret_version" "redis_url" {
@@ -69,19 +72,3 @@ resource "google_secret_manager_secret_version" "redis_url" {
   secret_data = "redis://:${random_password.redis_auth.result}@${google_redis_instance.timeintel.host}:${google_redis_instance.timeintel.port}"
 }
 
-# Outputs
-output "redis_host" {
-  value       = google_redis_instance.timeintel.host
-  description = "Redis instance host"
-}
-
-output "redis_port" {
-  value       = google_redis_instance.timeintel.port
-  description = "Redis instance port"
-}
-
-output "redis_url_secret" {
-  value       = google_secret_manager_secret.redis_url.name
-  description = "Secret Manager secret name for Redis URL"
-  sensitive   = true
-}

@@ -73,22 +73,6 @@ resource "google_firestore_index" "timeintel_tasks_status" {
 }
 
 # Outputs
-output "firebase_config" {
-  value = jsonencode({
-    apiKey          = "use_from_google_firebase_web_app_config"
-    authDomain      = "${var.firebase_project_id}.firebaseapp.com"
-    projectId       = var.project_id
-    storageBucket   = "${var.firebase_project_id}.appspot.com"
-    messagingSenderId = "use_from_google_firebase_web_app_config"
-    appId           = google_firebase_web_app.timeintel.app_id
-  })
-  description = "Firebase configuration for client-side initialization"
-}
-
-output "firebase_hosting_site_id" {
-  value       = google_firebase_hosting_site.timeintel_web.site_id
-  description = "Firebase Hosting site ID"
-}
 
 output "firestore_database" {
   value       = google_firestore_database.timeintel.name

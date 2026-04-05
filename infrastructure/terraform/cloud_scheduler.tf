@@ -215,6 +215,10 @@ resource "random_password" "scheduler_auth_token" {
 resource "google_secret_manager_secret" "scheduler_auth_token" {
   secret_id = "scheduler-auth-token"
   labels    = local.common_labels
+
+  replication {
+    auto {}
+  }
 }
 
 resource "google_secret_manager_secret_version" "scheduler_auth_token" {

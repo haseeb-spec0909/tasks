@@ -1,4 +1,4 @@
-# Build stage
+# Chatbot webhook service - shares backend codebase
 FROM node:20-slim as builder
 
 WORKDIR /app

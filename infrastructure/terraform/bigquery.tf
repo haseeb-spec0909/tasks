@@ -208,11 +208,6 @@ resource "google_bigquery_data_transfer_config" "daily_aggregation" {
 }
 
 # Outputs
-output "bigquery_dataset_id" {
-  value       = google_bigquery_dataset.timeintel_analytics.dataset_id
-  description = "BigQuery dataset ID for analytics"
-}
-
 output "bigquery_project_id" {
   value       = var.project_id
   description = "BigQuery project ID"
