@@ -8,54 +8,106 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 /**
- * @typedef {Object} Config
- * @property {string} NODE_ENV - Environment (development, production, test)
- * @property {number} PORT - Server port
- * @property {string} GCP_PROJECT_ID - Google Cloud Project ID
- * @property {string} CLOUD_SQL_CONNECTION - Cloud SQL connection string
- * @property {string} REDIS_HOST - Redis host
- * @property {number} REDIS_PORT - Redis port
- * @property {string} REDIS_PASSWORD - Redis password (optional)
- * @property {string} PROJECTFLOW_API_URL - ProjectFlow API base URL
- * @property {string} PROJECTFLOW_API_KEY - ProjectFlow API key
- * @property {string} VERTEX_AI_LOCATION - Vertex AI location (e.g., us-central1)
- * @property {string} GEMINI_MODEL - Gemini model name (e.g., gemini-1.5-pro)
- * @property {string} FIREBASE_PROJECT_ID - Firebase project ID
- * @property {string} GOOGLE_CHAT_WEBHOOK_URL - Google Chat incoming webhook
- * @property {string} ALLOWED_DOMAIN - Allowed email domain
- * @property {Object} OAUTH_SCOPES - Google OAuth scopes
- * @property {boolean} DEBUG - Debug mode flag
+ * Parse DATABASE_URL connection string into components
+ * Supports: postgresql://user:password@host:port/dbname
  */
+function parseDatabaseUrl(url) {
+  if (!url) return { host: 'localhost', port: 5432, user: 'timeintel', password: '', database: 'timeintel' };
+  try {
+    const parsed = new URL(url);
+    return {
+      host: parsed.hostname || 'localhost',
+      port: parseInt(parsed.port || '5432', 10),
+      user: parsed.username || 'timeintel',
+      password: decodeURIComponent(parsed.password || ''),
+      database: parsed.pathname.replace('/', '') || 'timeintel',
+    };
+  } catch (err) {
+    console.warn('Failed to parse DATABASE_URL, using defaults:', err.message);
+    return { host: 'localhost', port: 5432, user: 'timeintel', password: '', database: 'timeintel' };
+  }
+}
+
+/**
+ * Parse REDIS_URL connection string into components
+ * Supports: redis://:password@host:port or redis://host:port
+ * Uses manual parsing to handle passwords with special chars (%, {, etc.)
+ */
+function parseRedisUrl(url) {
+  if (!url) return { host: 'localhost', port: 6379, password: undefined };
+  try {
+    // Strip scheme (redis:// or rediss://)
+    let rest = url.replace(/^rediss?:\/\//, '');
+    let password = undefined;
+    let hostPort;
+
+    // Check for @ separator (credentials present)
+    const atIndex = rest.lastIndexOf('@');
+    if (atIndex !== -1) {
+      const authPart = rest.substring(0, atIndex);
+      hostPort = rest.substring(atIndex + 1);
+      // Auth can be ":password" or "user:password"
+      const colonIndex = authPart.indexOf(':');
+      if (colonIndex !== -1) {
+        password = authPart.substring(colonIndex + 1);
+      } else if (authPart) {
+        password = authPart;
+      }
+    } else {
+      hostPort = rest;
+    }
+
+    // Strip any path/query (e.g., /0?timeout=5)
+    hostPort = hostPort.split('/')[0].split('?')[0];
+
+    const [host, portStr] = hostPort.split(':');
+    return {
+      host: host || 'localhost',
+      port: parseInt(portStr || '6379', 10),
+      password: password || undefined,
+    };
+  } catch (err) {
+    console.warn('Failed to parse REDIS_URL, using defaults:', err.message);
+    return { host: 'localhost', port: 6379, password: undefined };
+  }
+}
+
+const dbConfig = parseDatabaseUrl(process.env.DATABASE_URL);
+const redisConfig = parseRedisUrl(process.env.REDIS_URL);
 
 const config = {
-  NODE_ENV: process.env.NODE_ENV || 'development',
+  NODE_ENV: process.env.NODE_ENV || 'production',
   PORT: parseInt(process.env.PORT || '8080', 10),
   DEBUG: process.env.DEBUG === 'true',
 
   // Google Cloud Configuration
   GCP_PROJECT_ID: process.env.GCP_PROJECT_ID,
-  CLOUD_SQL_CONNECTION: process.env.CLOUD_SQL_CONNECTION || 'localhost:5432',
-  
-  // Database
-  DB_USER: process.env.DB_USER || 'timeintel',
-  DB_PASSWORD: process.env.DB_PASSWORD,
-  DB_NAME: process.env.DB_NAME || 'timeintel',
-  
-  // Redis
-  REDIS_HOST: process.env.REDIS_HOST || 'localhost',
-  REDIS_PORT: parseInt(process.env.REDIS_PORT || '6379', 10),
-  REDIS_PASSWORD: process.env.REDIS_PASSWORD,
+  CLOUD_SQL_CONNECTION: `${dbConfig.host}:${dbConfig.port}`,
+
+  // Database (parsed from DATABASE_URL or individual env vars)
+  DATABASE_URL: process.env.DATABASE_URL,
+  DB_USER: process.env.DB_USER || dbConfig.user,
+  DB_PASSWORD: process.env.DB_PASSWORD || dbConfig.password,
+  DB_NAME: process.env.DB_NAME || dbConfig.database,
+  DB_HOST: dbConfig.host,
+  DB_PORT: dbConfig.port,
+
+  // Redis (parsed from REDIS_URL or individual env vars)
+  REDIS_URL: process.env.REDIS_URL,
+  REDIS_HOST: process.env.REDIS_HOST || redisConfig.host,
+  REDIS_PORT: parseInt(process.env.REDIS_PORT || String(redisConfig.port), 10),
+  REDIS_PASSWORD: process.env.REDIS_PASSWORD || redisConfig.password,
 
   // External APIs
-  PROJECTFLOW_API_URL: process.env.PROJECTFLOW_API_URL,
-  PROJECTFLOW_API_KEY: process.env.PROJECTFLOW_API_KEY,
+  PROJECTFLOW_API_URL: process.env.PROJECTFLOW_API_URL || 'https://projectflow.tmcltd.ai/api',
+  PROJECTFLOW_API_KEY: process.env.PROJECTFLOW_API_KEY || '',
 
   // Vertex AI
-  VERTEX_AI_LOCATION: process.env.VERTEX_AI_LOCATION || 'us-central1',
+  VERTEX_AI_LOCATION: process.env.VERTEX_AI_LOCATION || 'asia-south1',
   GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-1.5-pro',
 
   // Firebase
-  FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+  FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || process.env.GCP_PROJECT_ID || 'tmcltd-timeintel',
 
   // Google Chat
   GOOGLE_CHAT_WEBHOOK_URL: process.env.GOOGLE_CHAT_WEBHOOK_URL,
@@ -106,26 +158,26 @@ const config = {
 
 /**
  * Validate required configuration values
- * @throws {Error} If critical config is missing
+ * Logs warnings for missing non-critical config; only throws for truly essential vars
  */
 function validateConfig() {
-  const required = [
-    'GCP_PROJECT_ID',
-    'FIREBASE_PROJECT_ID',
-    'PROJECTFLOW_API_URL',
-    'PROJECTFLOW_API_KEY',
-  ];
+  // Critical: server cannot function without these
+  const critical = ['GCP_PROJECT_ID'];
+  // Important but non-fatal: features degrade gracefully without these
+  const recommended = ['FIREBASE_PROJECT_ID', 'PROJECTFLOW_API_URL', 'PROJECTFLOW_API_KEY'];
 
-  const missing = required.filter(key => !config[key]);
-  
-  if (missing.length > 0) {
-    if (config.NODE_ENV === 'production') {
-      throw new Error(
-        `Missing required environment variables: ${missing.join(', ')}`
-      );
-    }
+  const missingCritical = critical.filter(key => !config[key]);
+  const missingRecommended = recommended.filter(key => !config[key]);
+
+  if (missingCritical.length > 0) {
+    throw new Error(
+      `Missing critical environment variables: ${missingCritical.join(', ')}`
+    );
+  }
+
+  if (missingRecommended.length > 0) {
     console.warn(
-      `Warning: Missing environment variables in development: ${missing.join(', ')}`
+      `Warning: Missing recommended environment variables (some features may be limited): ${missingRecommended.join(', ')}`
     );
   }
 }

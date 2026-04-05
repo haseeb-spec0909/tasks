@@ -11,17 +11,17 @@ output "region_output" {
 
 # API Service Outputs
 output "backend_service_url" {
-  value       = google_cloud_run_service.backend.status[0].url
+  value       = try(google_cloud_run_service.backend.status[0].url, "not-yet-deployed")
   description = "Backend API service URL"
 }
 
 output "scheduler_service_url" {
-  value       = google_cloud_run_service.scheduler.status[0].url
+  value       = try(google_cloud_run_service.scheduler.status[0].url, "not-yet-deployed")
   description = "Scheduler service URL"
 }
 
 output "chatbot_webhook_url" {
-  value       = google_cloud_run_service.chatbot.status[0].url
+  value       = try(google_cloud_run_service.chatbot.status[0].url, "not-yet-deployed")
   description = "Chatbot webhook URL"
 }
 
@@ -131,13 +131,8 @@ output "monitoring_dashboard_url" {
   description = "URL to the custom monitoring dashboard"
 }
 
-output "uptime_checks" {
-  value = {
-    backend_health_check_id    = google_monitoring_uptime_check_config.backend_health.id
-    scheduler_health_check_id  = google_monitoring_uptime_check_config.scheduler_health.id
-  }
-  description = "Uptime check IDs"
-}
+# Uptime checks commented out - configure via Console after Load Balancer setup
+# output "uptime_checks" { ... }
 
 # Cloud Scheduler Jobs
 output "cloud_scheduler_jobs" {
@@ -160,7 +155,7 @@ output "deployment_summary" {
     environment      = var.environment
     region           = var.region
     project_id       = var.project_id
-    api_endpoint     = google_cloud_run_service.backend.status[0].url
+    api_endpoint     = try(google_cloud_run_service.backend.status[0].url, "not-yet-deployed")
     admin_email      = var.alert_email
     deployment_date  = timestamp()
   }

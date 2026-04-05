@@ -8,53 +8,12 @@ resource "google_monitoring_notification_channel" "email" {
   enabled = true
 }
 
-# Uptime check - Backend API
-resource "google_monitoring_uptime_check_config" "backend_health" {
-  display_name = "Backend API Health Check"
-  timeout      = "10s"
-  period       = "60s"
-
-  http_check {
-    path           = "/health"
-    port           = 443
-    use_ssl        = true
-    validate_ssl   = true
-    request_method = "GET"
-  }
-
-  monitored_resource {
-    type = "uptime-url"
-    labels = {
-      host = replace(google_cloud_run_service.backend.status[0].url, "https://", "")
-    }
-  }
-
-  selected_regions = ["USA", "EUROPE", "ASIA_PACIFIC"]
-}
-
-# Uptime check - Scheduler health
-resource "google_monitoring_uptime_check_config" "scheduler_health" {
-  display_name = "Scheduler Health Check"
-  timeout      = "10s"
-  period       = "60s"
-
-  http_check {
-    path           = "/health"
-    port           = 443
-    use_ssl        = true
-    validate_ssl   = true
-    request_method = "GET"
-  }
-
-  monitored_resource {
-    type = "uptime-url"
-    labels = {
-      host = replace(google_cloud_run_service.scheduler.status[0].url, "https://", "")
-    }
-  }
-
-  selected_regions = ["USA", "EUROPE", "ASIA_PACIFIC"]
-}
+# TODO: Uptime checks require public endpoints or authenticated probes.
+# Configure these via GCP Console after setting up custom domain with Load Balancer.
+# Commented out because IAM-protected Cloud Run services can't be probed directly.
+#
+# resource "google_monitoring_uptime_check_config" "backend_health" { ... }
+# resource "google_monitoring_uptime_check_config" "scheduler_health" { ... }
 
 # Alert Policy - API Latency
 resource "google_monitoring_alert_policy" "api_latency" {
@@ -90,7 +49,7 @@ resource "google_monitoring_alert_policy" "sync_error_rate" {
     display_name = "Sync Error Rate > 5%"
 
     condition_threshold {
-      filter          = "resource.type=\"cloud_run_revision\" AND metric.type=\"cloudfunctions.googleapis.com/execution_count\" AND metadata.user_labels.service=\"timeintel-scheduler\""
+      filter          = "resource.type=\"cloud_run_revision\" AND metric.type=\"run.googleapis.com/request_count\" AND resource.labels.service_name=\"timeintel-scheduler\" AND metric.labels.response_code_class!=\"2xx\""
       duration        = "600s"
       comparison      = "COMPARISON_GT"
       threshold_value = var.sync_error_rate_threshold * 100
@@ -140,7 +99,7 @@ resource "google_monitoring_alert_policy" "scheduling_failures" {
     display_name = "Scheduling Job Failures"
 
     condition_threshold {
-      filter          = "resource.type=\"cloud_run_revision\" AND metric.type=\"cloudfunctions.googleapis.com/execution_count\" AND metadata.user_labels.service=\"timeintel-scheduler\" AND metric.status=\"error\""
+      filter          = "resource.type=\"cloud_run_revision\" AND metric.type=\"run.googleapis.com/request_count\" AND resource.labels.service_name=\"timeintel-scheduler\" AND metric.labels.response_code_class=\"5xx\""
       duration        = "600s"
       comparison      = "COMPARISON_GT"
       threshold_value = 5

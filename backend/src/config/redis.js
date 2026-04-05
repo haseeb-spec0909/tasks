@@ -8,19 +8,36 @@ import config from './index.js';
 
 /**
  * Redis client instance
+ * Supports REDIS_URL connection string or individual host/port/password config
  * @type {Redis}
  */
+const redisOptions = {
+  retryStrategy: (times) => {
+    if (times > 10) {
+      console.error('Redis: max retries reached, stopping reconnect');
+      return null; // Stop retrying after 10 attempts
+    }
+    const delay = Math.min(times * 200, 5000);
+    return delay;
+  },
+  maxRetriesPerRequest: 3,
+  enableReadyCheck: true,
+  commandTimeout: config.TIMEOUTS.redis,
+  lazyConnect: true, // Don't connect immediately - let the app start first
+};
+
+// Always use parsed host/port/password instead of raw URL
+// (REDIS_URL may contain special chars that break URL parsing in ioredis)
 const redis = new Redis({
   host: config.REDIS_HOST,
   port: config.REDIS_PORT,
-  password: config.REDIS_PASSWORD,
-  retryStrategy: (times) => {
-    const delay = Math.min(times * 50, 2000);
-    return delay;
-  },
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-  commandTimeout: config.TIMEOUTS.redis,
+  password: config.REDIS_PASSWORD || undefined,
+  ...redisOptions,
+});
+
+// Connect asynchronously (non-blocking)
+redis.connect().catch((err) => {
+  console.error('Redis initial connection failed (will retry):', err.message);
 });
 
 redis.on('error', (err) => {

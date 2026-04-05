@@ -5,11 +5,11 @@ resource "google_redis_instance" "timeintel" {
   tier           = var.redis_tier
   region         = var.region
 
-  redis_version = "7"
+  redis_version = "REDIS_7_0"
 
   # Network configuration
-  display_name = "TimeIntel Cache"
-  network      = google_compute_network.timeintel_vpc.id
+  display_name      = "TimeIntel Cache"
+  authorized_network = google_compute_network.timeintel_vpc.id
 
   # Redis configuration
   redis_configs = {

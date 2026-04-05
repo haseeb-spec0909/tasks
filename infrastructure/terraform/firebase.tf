@@ -3,9 +3,6 @@ resource "google_firebase_hosting_site" "timeintel_web" {
   provider    = google-beta
   project     = var.project_id
   site_id     = "timeintel-web"
-  region      = "us-central1"
-  app_id      = google_firebase_web_app.timeintel.app_id
-  display_name = "TimeIntel Web"
 }
 
 # Firebase Web App
@@ -17,10 +14,9 @@ resource "google_firebase_web_app" "timeintel" {
 }
 
 # Firebase Web App Config (for client-side initialization)
-resource "google_firebase_web_app_config" "timeintel" {
+data "google_firebase_web_app_config" "timeintel" {
   provider   = google-beta
   web_app_id = google_firebase_web_app.timeintel.app_id
-  project    = var.project_id
 }
 
 # Firestore Database (for real-time updates)
@@ -30,7 +26,6 @@ resource "google_firestore_database" "timeintel" {
   name                  = "(default)"
   location_id           = var.region
   type                  = "FIRESTORE_NATIVE"
-  delete_protection_enabled = var.environment == "production" ? true : false
   deletion_policy       = "DELETE"
 }
 

@@ -10,20 +10,32 @@ const { Pool } = pkg;
 
 /**
  * PostgreSQL connection pool with optimized settings
+ * Supports DATABASE_URL connection string or individual config values
  * @type {Pool}
  */
-const pool = new Pool({
-  user: config.DB_USER,
-  password: config.DB_PASSWORD,
-  host: config.CLOUD_SQL_CONNECTION.split(':')[0],
-  port: parseInt(config.CLOUD_SQL_CONNECTION.split(':')[1] || '5432', 10),
-  database: config.DB_NAME,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-  statement_timeout: 5000,
-  query_timeout: 5000,
-});
+const poolConfig = config.DATABASE_URL
+  ? {
+      connectionString: config.DATABASE_URL,
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+      statement_timeout: 10000,
+      query_timeout: 10000,
+    }
+  : {
+      user: config.DB_USER,
+      password: config.DB_PASSWORD,
+      host: config.DB_HOST || config.CLOUD_SQL_CONNECTION.split(':')[0],
+      port: config.DB_PORT || parseInt(config.CLOUD_SQL_CONNECTION.split(':')[1] || '5432', 10),
+      database: config.DB_NAME,
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+      statement_timeout: 10000,
+      query_timeout: 10000,
+    };
+
+const pool = new Pool(poolConfig);
 
 /**
  * Handle pool errors

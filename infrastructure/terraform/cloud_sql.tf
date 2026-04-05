@@ -11,11 +11,6 @@ resource "google_sql_database_instance" "timeintel" {
     disk_size         = var.db_storage_size
 
     database_flags {
-      name  = "cloudsql_iam_authentication"
-      value = "on"
-    }
-
-    database_flags {
       name  = "max_connections"
       value = "200"
     }
@@ -62,8 +57,6 @@ resource "google_sql_database_instance" "timeintel" {
   deletion_protection = var.environment == "production" ? true : false
 
   depends_on = [google_service_networking_connection.private_vpc_connection]
-
-  labels = local.common_labels
 }
 
 # PostgreSQL database

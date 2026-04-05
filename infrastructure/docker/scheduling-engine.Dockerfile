@@ -30,10 +30,10 @@ USER appuser
 # Set PATH to include user's local bin
 ENV PATH=/home/appuser/.local/bin:$PATH
 
-EXPOSE 8081
+EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8081/health').status == 200"
+  CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health').status == 200"
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8081"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

@@ -3,8 +3,6 @@ resource "google_compute_network" "timeintel_vpc" {
   name                    = "timeintel-vpc"
   auto_create_subnetworks = false
   routing_mode            = "REGIONAL"
-
-  labels = local.common_labels
 }
 
 # Subnetwork for asia-south1
@@ -34,8 +32,6 @@ resource "google_vpc_access_connector" "timeintel_connector" {
   region        = var.region
 
   machine_type = "e2-micro"
-
-  labels = local.common_labels
 }
 
 # Private connection for Cloud SQL

@@ -21,7 +21,6 @@ resource "google_cloud_scheduler_job" "pf_sync_poll" {
     }
   }
 
-  labels = local.common_labels
 }
 
 # Cloud Scheduler Job - Google Tasks Sync Poll (every 60 seconds)
@@ -47,7 +46,6 @@ resource "google_cloud_scheduler_job" "gtasks_poll" {
     }
   }
 
-  labels = local.common_labels
 }
 
 # Cloud Scheduler Job - Daily Digest (8:30 AM PKT = 3:30 UTC)
@@ -73,7 +71,6 @@ resource "google_cloud_scheduler_job" "daily_digest" {
     }
   }
 
-  labels = local.common_labels
 }
 
 # Cloud Scheduler Job - Weekly Digest (Monday 8:30 AM PKT)
@@ -99,7 +96,6 @@ resource "google_cloud_scheduler_job" "weekly_digest" {
     }
   }
 
-  labels = local.common_labels
 }
 
 # Cloud Scheduler Job - Google Calendar Watch Renewal (every 6 days)
@@ -125,7 +121,6 @@ resource "google_cloud_scheduler_job" "gcal_watch_renew" {
     }
   }
 
-  labels = local.common_labels
 }
 
 # Cloud Scheduler Job - Deadline Check (every hour)
@@ -151,7 +146,6 @@ resource "google_cloud_scheduler_job" "deadline_check" {
     }
   }
 
-  labels = local.common_labels
 }
 
 # Cloud Scheduler Job - Overdue Check (daily 9:00 AM PKT = 4:00 UTC)
@@ -177,7 +171,6 @@ resource "google_cloud_scheduler_job" "overdue_check" {
     }
   }
 
-  labels = local.common_labels
 }
 
 # Cloud Scheduler Job - EOD Summary (5:30 PM PKT = 12:30 UTC)
@@ -203,7 +196,6 @@ resource "google_cloud_scheduler_job" "eod_summary" {
     }
   }
 
-  labels = local.common_labels
 }
 
 # Scheduler authorization token

@@ -179,33 +179,12 @@ resource "google_bigquery_table" "pf_delivery_metrics" {
 }
 
 # Scheduled query for daily aggregation (runs at 1 AM UTC)
-resource "google_bigquery_data_transfer_config" "daily_aggregation" {
-  location       = var.region
-  data_source_id = "scheduled_query"
-  destination_dataset_id = google_bigquery_dataset.timeintel_analytics.dataset_id
-  schedule       = "every day 01:00"
-  display_name   = "Daily TimeIntel Analytics Aggregation"
-
-  params = {
-    query = <<-SQL
-      -- This is a placeholder query. Replace with actual aggregation logic.
-      SELECT
-        CURRENT_DATE() as date,
-        userId,
-        0.0 as totalHoursWorked,
-        0 as taskCount,
-        0.0 as meetingDuration,
-        0 as focusTimeMinutes,
-        CURRENT_TIMESTAMP() as createdAt
-      FROM `${var.project_id}.timeintel_db.users`
-      LIMIT 1
-    SQL
-    destination_table_name_template = "${google_bigquery_dataset.timeintel_analytics.dataset_id}.daily_time_breakdown"
-    write_disposition               = "WRITE_APPEND"
-  }
-
-  depends_on = [google_bigquery_table.daily_time_breakdown]
-}
+# TODO: BigQuery scheduled query requires BigQuery Data Transfer Service setup.
+# Configure via GCP Console: BigQuery > Scheduled Queries > Create
+# The service account needs roles/bigquery.admin and the Data Transfer Service
+# must be enabled with proper OAuth consent.
+#
+# resource "google_bigquery_data_transfer_config" "daily_aggregation" { ... }
 
 # Outputs
 output "bigquery_project_id" {

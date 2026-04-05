@@ -53,6 +53,16 @@ resource "google_cloud_run_service" "backend" {
         }
 
         env {
+          name  = "NODE_ENV"
+          value = "production"
+        }
+
+        env {
+          name  = "FIREBASE_PROJECT_ID"
+          value = var.firebase_project_id
+        }
+
+        env {
           name = "OAUTH_CLIENT_SECRET"
           value_from {
             secret_key_ref {
@@ -61,17 +71,19 @@ resource "google_cloud_run_service" "backend" {
             }
           }
         }
-      }
 
-      vpc_access_connector {
-        name = google_vpc_access_connector.timeintel_connector.name
+        ports {
+          container_port = 8080
+        }
       }
     }
 
     metadata {
       annotations = {
-        "autoscaling.knative.dev/minScale" = var.backend_min_instances
-        "autoscaling.knative.dev/maxScale" = var.backend_max_instances
+        "autoscaling.knative.dev/minScale"      = var.backend_min_instances
+        "autoscaling.knative.dev/maxScale"      = var.backend_max_instances
+        "run.googleapis.com/vpc-access-connector" = google_vpc_access_connector.timeintel_connector.id
+        "run.googleapis.com/vpc-access-egress"    = "private-ranges-only"
       }
     }
   }
@@ -80,8 +92,6 @@ resource "google_cloud_run_service" "backend" {
     percent         = 100
     latest_revision = true
   }
-
-  labels = local.common_labels
 
   depends_on = [
     google_secret_manager_secret_version.db_connection_url,
@@ -138,17 +148,19 @@ resource "google_cloud_run_service" "scheduler" {
           name  = "LOG_LEVEL"
           value = "info"
         }
-      }
 
-      vpc_access_connector {
-        name = google_vpc_access_connector.timeintel_connector.name
+        ports {
+          container_port = 8080
+        }
       }
     }
 
     metadata {
       annotations = {
-        "autoscaling.knative.dev/minScale" = var.scheduler_min_instances
-        "autoscaling.knative.dev/maxScale" = var.scheduler_max_instances
+        "autoscaling.knative.dev/minScale"      = var.scheduler_min_instances
+        "autoscaling.knative.dev/maxScale"      = var.scheduler_max_instances
+        "run.googleapis.com/vpc-access-connector" = google_vpc_access_connector.timeintel_connector.id
+        "run.googleapis.com/vpc-access-egress"    = "private-ranges-only"
       }
     }
   }
@@ -157,8 +169,6 @@ resource "google_cloud_run_service" "scheduler" {
     percent         = 100
     latest_revision = true
   }
-
-  labels = local.common_labels
 
   depends_on = [
     google_secret_manager_secret_version.db_connection_url,
@@ -189,17 +199,19 @@ resource "google_cloud_run_service" "chatbot" {
           name  = "GCP_PROJECT_ID"
           value = var.project_id
         }
-      }
 
-      vpc_access_connector {
-        name = google_vpc_access_connector.timeintel_connector.name
+        ports {
+          container_port = 8080
+        }
       }
     }
 
     metadata {
       annotations = {
-        "autoscaling.knative.dev/minScale" = var.chatbot_min_instances
-        "autoscaling.knative.dev/maxScale" = var.chatbot_max_instances
+        "autoscaling.knative.dev/minScale"      = var.chatbot_min_instances
+        "autoscaling.knative.dev/maxScale"      = var.chatbot_max_instances
+        "run.googleapis.com/vpc-access-connector" = google_vpc_access_connector.timeintel_connector.id
+        "run.googleapis.com/vpc-access-egress"    = "private-ranges-only"
       }
     }
   }
@@ -208,16 +220,15 @@ resource "google_cloud_run_service" "chatbot" {
     percent         = 100
     latest_revision = true
   }
-
-  labels = local.common_labels
 }
 
-# IAM bindings for Cloud Run services (allow unauthenticated access for webhooks)
+# IAM bindings for Cloud Run services
+# Using domain-restricted sharing per org policy (allUsers not permitted)
 resource "google_cloud_run_service_iam_member" "backend_invoker" {
   service  = google_cloud_run_service.backend.name
   location = google_cloud_run_service.backend.location
   role     = "roles/run.invoker"
-  member   = "allUsers"
+  member   = "domain:tmcltd.ai"
 }
 
 resource "google_cloud_run_service_iam_member" "scheduler_invoker" {
@@ -231,7 +242,5 @@ resource "google_cloud_run_service_iam_member" "chatbot_invoker" {
   service  = google_cloud_run_service.chatbot.name
   location = google_cloud_run_service.chatbot.location
   role     = "roles/run.invoker"
-  member   = "allUsers"
+  member   = "domain:tmcltd.ai"
 }
-
-# Outputs

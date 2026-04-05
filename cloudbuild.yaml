@@ -6,7 +6,7 @@ steps:
       - '-t'
       - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/backend:latest'
       - '-t'
-      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/backend:$SHORT_SHA'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/backend:$BUILD_ID'
       - '-f'
       - 'infrastructure/docker/backend.Dockerfile'
       - 'backend/'
@@ -19,7 +19,7 @@ steps:
       - '-t'
       - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/scheduler:latest'
       - '-t'
-      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/scheduler:$SHORT_SHA'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/scheduler:$BUILD_ID'
       - '-f'
       - 'infrastructure/docker/scheduling-engine.Dockerfile'
       - 'scheduling-engine/'
@@ -32,7 +32,7 @@ steps:
       - '-t'
       - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/chatbot:latest'
       - '-t'
-      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/chatbot:$SHORT_SHA'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/chatbot:$BUILD_ID'
       - '-f'
       - 'infrastructure/docker/chatbot.Dockerfile'
       - 'backend/'
@@ -44,5 +44,5 @@ images:
   - 'asia-south1-docker.pkg.dev/$PROJECT_ID/timeintel/chatbot:latest'
 
 options:
-  logging: CLOUD_LOGGING_ONLY
+  logging: LEGACY
   machineType: 'E2_HIGHCPU_8'

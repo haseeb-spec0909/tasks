@@ -34,14 +34,28 @@ function rateLimitHandler(req, res) {
 }
 
 /**
+ * Create a Redis store for rate limiting with fallback to memory store
+ * @param {string} prefix - Redis key prefix
+ * @returns {Object|undefined} RedisStore instance or undefined (uses memory)
+ */
+function createStore(prefix) {
+  try {
+    return new RedisStore({
+      client: redis,
+      prefix,
+    });
+  } catch (err) {
+    console.warn(`Rate limiter: Redis store failed for ${prefix}, falling back to memory store:`, err.message);
+    return undefined; // express-rate-limit will use memory store
+  }
+}
+
+/**
  * General rate limiter - 200 requests per minute
  * Applied to most endpoints
  */
 export const generalLimiter = rateLimit({
-  store: new RedisStore({
-    client: redis,
-    prefix: 'rate-limit:general:',
-  }),
+  store: createStore('rate-limit:general:'),
   windowMs: 60 * 1000, // 1 minute
   max: config.RATE_LIMITS.general, // 200 requests
   message: 'Too many requests',
@@ -60,10 +74,7 @@ export const generalLimiter = rateLimit({
  * Applied to POST, PUT, DELETE endpoints
  */
 export const writeLimiter = rateLimit({
-  store: new RedisStore({
-    client: redis,
-    prefix: 'rate-limit:write:',
-  }),
+  store: createStore('rate-limit:write:'),
   windowMs: 60 * 1000, // 1 minute
   max: config.RATE_LIMITS.write, // 50 requests
   message: 'Too many write requests',
@@ -78,10 +89,7 @@ export const writeLimiter = rateLimit({
  * Applied to ProjectFlow sync operations
  */
 export const projectflowSyncLimiter = rateLimit({
-  store: new RedisStore({
-    client: redis,
-    prefix: 'rate-limit:pf-sync:',
-  }),
+  store: createStore('rate-limit:pf-sync:'),
   windowMs: 60 * 1000, // 1 minute
   max: config.RATE_LIMITS.projectflow_sync, // 20 requests
   message: 'ProjectFlow sync rate limit exceeded',
@@ -102,10 +110,7 @@ export const projectflowSyncLimiter = rateLimit({
  * Applied to login/auth endpoints - 10 requests per minute
  */
 export const authLimiter = rateLimit({
-  store: new RedisStore({
-    client: redis,
-    prefix: 'rate-limit:auth:',
-  }),
+  store: createStore('rate-limit:auth:'),
   windowMs: 60 * 1000, // 1 minute
   max: 10, // 10 requests
   message: 'Too many authentication attempts',

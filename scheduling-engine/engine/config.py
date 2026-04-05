@@ -20,8 +20,8 @@ class Config:
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
     # GCP
-    GCP_PROJECT: str = os.getenv("GCP_PROJECT", "tmc-timeintel-prod")
-    VERTEX_AI_LOCATION: str = os.getenv("VERTEX_AI_LOCATION", "us-central1")
+    GCP_PROJECT: str = os.getenv("GCP_PROJECT_ID", os.getenv("GCP_PROJECT", "tmcltd-timeintel"))
+    VERTEX_AI_LOCATION: str = os.getenv("VERTEX_AI_LOCATION", "asia-south1")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
 
     # Scheduling parameters
@@ -32,7 +32,7 @@ class Config:
 
     # Server
     HOST: str = os.getenv("HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("PORT", "8081"))
+    PORT: int = int(os.getenv("PORT", "8080"))
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
     # Admin

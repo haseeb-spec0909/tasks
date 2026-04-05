@@ -7,7 +7,7 @@ environment = "production"
 admin_email = "haseeb@tmcltd.ai"
 
 # Database Configuration
-db_instance_tier   = "db-n1-standard-2"
+db_instance_tier   = "db-custom-2-7680"
 db_storage_size    = 50
 db_storage_type    = "PD_SSD"
 db_backup_enabled  = true
@@ -31,7 +31,7 @@ chatbot_max_instances = 5
 
 # Redis Configuration
 redis_memory_size_gb = 1
-redis_tier           = "basic"
+redis_tier           = "BASIC"
 
 # Domain Configuration
 api_domain = "api.timeintel.tmcltd.ai"

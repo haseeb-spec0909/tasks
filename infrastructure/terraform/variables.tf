@@ -30,7 +30,7 @@ variable "admin_email" {
 variable "db_instance_tier" {
   description = "Cloud SQL instance machine type"
   type        = string
-  default     = "db-n1-standard-2"
+  default     = "db-custom-2-7680"
 }
 
 variable "db_storage_size" {
@@ -128,10 +128,10 @@ variable "redis_memory_size_gb" {
 variable "redis_tier" {
   description = "Memorystore Redis tier (basic or standard)"
   type        = string
-  default     = "basic"
+  default     = "BASIC"
   validation {
-    condition     = contains(["basic", "standard"], var.redis_tier)
-    error_message = "Redis tier must be basic or standard."
+    condition     = contains(["BASIC", "STANDARD_HA"], var.redis_tier)
+    error_message = "Redis tier must be BASIC or STANDARD_HA."
   }
 }
 

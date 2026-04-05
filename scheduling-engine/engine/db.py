@@ -26,8 +26,15 @@ class DatabaseConnection:
     async def init(self):
         """Initialize async database engine."""
         try:
+            # Ensure the URL uses asyncpg driver for async operations
+            db_url = config.DATABASE_URL
+            if db_url.startswith("postgresql://"):
+                db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            elif db_url.startswith("postgres://"):
+                db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+
             self.engine = create_async_engine(
-                config.DATABASE_URL,
+                db_url,
                 echo=config.DEBUG,
                 pool_size=10,
                 max_overflow=20
